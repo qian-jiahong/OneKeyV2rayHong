@@ -1201,8 +1201,11 @@ EOF
 
 build_quantumult_config_ws() {
     local output_file=$1
-    echo "$configAlias = vmess, $domain, $port, chacha20-ietf-poly1305, "\"$uuid\"", \
-        over-tls=true, certificate=1, obfs=ws, obfs-path="\"$obfsPath\"", " >$output_file
+
+    cat >$output_file <<-EOF
+$configAlias = vmess, $domain, $port, chacha20-ietf-poly1305, "$uuid", \
+        over-tls=true, certificate=1, obfs=ws, obfs-path="$obfsPath",
+EOF
 }
 
 # 将配置文件编码为 base64，生成文本二维码，针对 V2RayNG/V2RayN/Fair 客户端
