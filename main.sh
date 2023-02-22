@@ -444,8 +444,9 @@ install_software() {
 }
 
 check_if_running_as_root() {
-    if [[ "$UID" -ne '0' ]]; then
-        show_error_message "请以 root 用户执行脚本, 终止!"
+    local group_name=$(groups)
+    if [ -z "$group_name" ] || (( $(echo "$group_name" | grep -Ec "(sudo)|(root)")!=0 )); then
+        show_error_message "请以 root/sudo 用户组的用户执行脚本, 终止!"
         exit 1
     fi
 }
