@@ -251,8 +251,16 @@ init_default_value() {
 }
 
 save_onekey_config() {
+    if [[ $obfsType == "ws" ]]; then
+        configAlias="${domain}_VMESS+WS+TLS"
+    elif [[ $obfsType == "h2" ]]; then
+        configAlias="${domain}_VMESS+HTTP2+TLS"
+    else
+        configAlias="${domain}"
+    fi
+
     cat >$onekey_conf <<-EOF
-configAlias="OneKeyV2rayHong_$domain"
+configAlias="$configAlias"
 domain="$domain"
 port=$port
 inbound_port=$inbound_port
@@ -1236,6 +1244,7 @@ build_client_vmess_link_and_qrcode() {
 # 生成直观的设置信息
 build_v2ray_config_desc() {
     if [[ -f $onekey_conf ]]; then
+        show_message "配置别名: $configAlias"
         show_message "地址（address）: $domain"
         show_message "端口（port）: $port"
         show_message "用户id（UUID）: $uuid"
