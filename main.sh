@@ -444,7 +444,7 @@ install_software() {
 }
 
 check_if_running_as_root() {
-    if [ -z "$UID" ] || [ "$UID" != '0' ]; then
+    if [[ "$UID" -ne '0' ]]; then
         show_error_message "请以 root 用户执行脚本, 终止!"
         exit 1
     fi
@@ -866,8 +866,9 @@ domain_check() {
         show_ok_message "域名 DNS 解析 IP 与本机 IPv6 匹配"
     else
         show_error_message "域名 DNS 解析 IP 与 本机 IPv4 / IPv6 不匹配"
-        show_error_message "请确保域名添加了正确的 A / AAAA 记录，否则将无法正常使用 V2ray"
-        read -rp "是否继续安装? [Y/N](默认:Y, 直接回车, 继续安装): " -t 5 install_confirm
+        show_error_message "请确保域名添加了正确的 A / AAAA 记录，否则将无法正常使用 V2ray，也无法申请 SSL 证书"
+        read -rp "是否继续安装? [Y/N](默认:Y, 直接回车, 继续安装): " -t 10 install_confirm
+        [[ -z $install_confirm ]] && install_confirm="Y"
         case $install_confirm in
         [yY][eE][sS] | [yY])
             show_striking_message "${F_GREEN_BG} 继续安装"
@@ -1508,17 +1509,20 @@ ask_enable_acme_sh() {
 
 # 安装 SSL 证书申请脚本
 acme_sh_install() {
-    if [[ "${linux_distribution}" == "centos" ]]; then
-        ${PACKAGE_MANAGEMENT_INSTALL} socat nc
-    else
-        ${PACKAGE_MANAGEMENT_INSTALL} socat netcat
+    if [[ ! "$(type -P socat)" ]]; then
+        ${PACKAGE_MANAGEMENT_INSTALL} socat
+        judge "安装 socat"
     fi
-    judge "安装 SSL 证书生成脚本依赖"
+    
+    if [[ ! "$(type -P netcat)" ]]; then
+        ${PACKAGE_MANAGEMENT_INSTALL} netcat
+        judge "安装 netcat"
+    fi
 
     if [[ ! -f $acme_sh_file ]]; then
         wget -O - $get_acme_sh_url | sh
+        judge "安装 SSL 证书管理脚本 acme"
     fi
-    judge "安装 SSL 证书管理脚本 acme"
 
     # acme.sh 自动更新
     $acme_sh_file --upgrade --auto-upgrade
@@ -1691,6 +1695,10 @@ install_v2ray_ws_tls() {
     chrony_install
     dependency_install
 
+    nginx_and_v2ray_service_stop
+    kill_port_if_exist 80
+    kill_port_if_exist ${port}
+
     # 安装及设置 acme SSL 证书管理脚本
     if acme_sh_is_enabled; then
         acme_sh_install
@@ -1701,9 +1709,6 @@ install_v2ray_ws_tls() {
     # 安装及设置 v2ray core
     v2ray_install
     v2ray_conf_init_ws
-
-    kill_port_if_exist 80
-    kill_port_if_exist ${port}
 
     # 安装及设置 nginx
     nginx_install
@@ -1738,6 +1743,10 @@ install_v2ray_h2() {
     chrony_install
     dependency_install
 
+    systemctl stop v2ray
+    kill_port_if_exist 80
+    kill_port_if_exist "${port}"
+
     # 安装及设置 acme SSL 证书管理脚本
     if acme_sh_is_enabled; then
         acme_sh_install
@@ -1748,9 +1757,6 @@ install_v2ray_h2() {
     # 安装及设置 v2ray core
     v2ray_install
     v2ray_conf_init_h2
-
-    kill_port_if_exist 80
-    kill_port_if_exist "${port}"
 
     # 启动服务
     nginx_and_v2ray_service_restart
