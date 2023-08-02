@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.02.20.01"
+onekey_script_version="2023.08.02.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -378,22 +378,27 @@ identify_the_operating_system_and_architecture() {
             exit 1
         fi
         if [[ "$(type -P apt)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='apt -y --no-install-recommends update'
             PACKAGE_MANAGEMENT_INSTALL='apt -y --no-install-recommends install'
             PACKAGE_MANAGEMENT_REMOVE='apt purge'
             package_provide_tput='ncurses-bin'
         elif [[ "$(type -P dnf)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='dnf -y update'
             PACKAGE_MANAGEMENT_INSTALL='dnf -y install'
             PACKAGE_MANAGEMENT_REMOVE='dnf remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P yum)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='yum -y update'
             PACKAGE_MANAGEMENT_INSTALL='yum -y install'
             PACKAGE_MANAGEMENT_REMOVE='yum remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P zypper)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='zypper update -y --no-recommends'
             PACKAGE_MANAGEMENT_INSTALL='zypper install -y --no-recommends'
             PACKAGE_MANAGEMENT_REMOVE='zypper remove'
             package_provide_tput='ncurses-utils'
         elif [[ "$(type -P pacman)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='pacman update -Syu --noconfirm'
             PACKAGE_MANAGEMENT_INSTALL='pacman -Syu --noconfirm'
             PACKAGE_MANAGEMENT_REMOVE='pacman -Rsn'
             package_provide_tput='ncurses'
@@ -503,6 +508,8 @@ chrony_install() {
         service_name="chronyd"
     fi
 
+    ${PACKAGE_MANAGEMENT_UPDATE}
+    
     result=$(systemctl status $service_name)
     if [[ -z $result ]]; then
         ${PACKAGE_MANAGEMENT_INSTALL} $app_name
