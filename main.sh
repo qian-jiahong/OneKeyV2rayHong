@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.08.02.01"
+onekey_script_version="2023.08.08.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -561,9 +561,10 @@ dependency_install() {
         judge "安装 $app_name "
     fi
 
-    touch $crontabs_path && chmod 600 $crontabs_path
-    systemctl enable $service_name && systemctl restart $service_name
-    judge "$service_name 服务启动"
+    if [[ $(bash service --status-all | grep -c cron) -gt 0 ]]; then
+        systemctl enable $service_name && systemctl restart $service_name
+        judge "$service_name 服务启动"
+    fi
 
     #########################
     # haveged - 随机数生成器
@@ -1535,7 +1536,7 @@ acme_sh_install() {
     $acme_sh_file --upgrade --auto-upgrade
 
     # 安装添加定期更新任务
-    bash $get_acme_sh_url --install-cronjob
+    $acme_sh_file --install-cronjob
 }
 
 # 卸载 SSL 证书管理脚本, 会自动删除 crontab 任务
