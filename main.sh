@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.10.08.01"
+onekey_script_version="2023.10.08.02"
 remote_version=""
 
 # 必须的脚本名称
@@ -569,9 +569,13 @@ dependency_install() {
     #########################
     # haveged - 随机数生成器
     #########################
-    install_software haveged haveged
-    systemctl start haveged && systemctl enable haveged
-    judge "haveged 启动"
+    if [[ $(ls '/dev/urandom' >/dev/null 2>&1 && echo 0) ]]; then
+        echo ''
+    else
+        install_software haveged haveged
+        systemctl start haveged && systemctl enable haveged
+        judge "haveged 启动"
+    fi
 
     mkdir -p /usr/local/bin >/dev/null 2>&1
 }
@@ -1517,15 +1521,8 @@ ask_enable_acme_sh() {
 
 # 安装 SSL 证书申请脚本
 acme_sh_install() {
-    if [[ ! "$(type -P socat)" ]]; then
-        ${PACKAGE_MANAGEMENT_INSTALL} socat
-        judge "安装 socat"
-    fi
-    
-    if [[ ! "$(type -P netcat)" ]]; then
-        ${PACKAGE_MANAGEMENT_INSTALL} netcat
-        judge "安装 netcat"
-    fi
+    install_software socat socat
+    install_software nmap netcat
 
     if [[ ! -f $acme_sh_file ]]; then
         wget -O - $get_acme_sh_url | sh
