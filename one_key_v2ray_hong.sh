@@ -103,22 +103,27 @@ identify_the_operating_system_and_architecture() {
             exit 1
         fi
         if [[ "$(type -P apt)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='apt -y --no-install-recommends update'
             PACKAGE_MANAGEMENT_INSTALL='apt -y --no-install-recommends install'
             PACKAGE_MANAGEMENT_REMOVE='apt purge'
             package_provide_tput='ncurses-bin'
         elif [[ "$(type -P dnf)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='dnf -y update'
             PACKAGE_MANAGEMENT_INSTALL='dnf -y install'
             PACKAGE_MANAGEMENT_REMOVE='dnf remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P yum)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='yum makecache --refresh'
             PACKAGE_MANAGEMENT_INSTALL='yum -y install'
             PACKAGE_MANAGEMENT_REMOVE='yum remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P zypper)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='zypper update -y --no-recommends'
             PACKAGE_MANAGEMENT_INSTALL='zypper install -y --no-recommends'
             PACKAGE_MANAGEMENT_REMOVE='zypper remove'
             package_provide_tput='ncurses-utils'
         elif [[ "$(type -P pacman)" ]]; then
+            PACKAGE_MANAGEMENT_UPDATE='pacman update -Syu --noconfirm'
             PACKAGE_MANAGEMENT_INSTALL='pacman -Syu --noconfirm'
             PACKAGE_MANAGEMENT_REMOVE='pacman -Rsn'
             package_provide_tput='ncurses'
@@ -197,6 +202,7 @@ main() {
 
     check_if_running_as_root
     identify_the_operating_system_and_architecture
+    ${PACKAGE_MANAGEMENT_UPDATE}
     install_software wget wget
     if [ ! -f "${main_script_path}" ]; then
         local temp_dir=$(mktemp -d)

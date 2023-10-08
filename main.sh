@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.10.08.02"
+onekey_script_version="2023.10.08.03"
 remote_version=""
 
 # 必须的脚本名称
@@ -388,7 +388,7 @@ identify_the_operating_system_and_architecture() {
             PACKAGE_MANAGEMENT_REMOVE='dnf remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P yum)" ]]; then
-            PACKAGE_MANAGEMENT_UPDATE='yum -y update'
+            PACKAGE_MANAGEMENT_UPDATE='yum makecache --refresh'
             PACKAGE_MANAGEMENT_INSTALL='yum -y install'
             PACKAGE_MANAGEMENT_REMOVE='yum remove'
             package_provide_tput='ncurses'
@@ -569,13 +569,9 @@ dependency_install() {
     #########################
     # haveged - 随机数生成器
     #########################
-    if [[ $(ls '/dev/urandom' >/dev/null 2>&1 && echo 0) ]]; then
-        echo ''
-    else
-        install_software haveged haveged
-        systemctl start haveged && systemctl enable haveged
-        judge "haveged 启动"
-    fi
+    install_software haveged haveged
+    systemctl start haveged && systemctl enable haveged
+    judge "haveged 启动"
 
     mkdir -p /usr/local/bin >/dev/null 2>&1
 }
