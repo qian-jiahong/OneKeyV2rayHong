@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.08.08.01"
+onekey_script_version="2023.10.08.01"
 remote_version=""
 
 # 必须的脚本名称

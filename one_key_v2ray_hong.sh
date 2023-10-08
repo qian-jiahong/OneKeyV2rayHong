@@ -195,6 +195,8 @@ main() {
     [[ -d ${one_key_conf_dir} ]] || mkdir -p "${one_key_conf_dir}"
     cd "${one_key_conf_dir}" || exit
 
+    check_if_running_as_root
+    identify_the_operating_system_and_architecture
     install_software wget wget
     if [ ! -f "${main_script_path}" ]; then
         local temp_dir=$(mktemp -d)
