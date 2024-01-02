@@ -569,9 +569,13 @@ dependency_install() {
     #########################
     # haveged - 随机数生成器
     #########################
-    # install_software haveged haveged
-    # systemctl start haveged && systemctl enable haveged
-    # judge "haveged 启动"
+    if [[ $(ls '/dev/urandom' >/dev/null 2>&1 && echo 0) ]]; then
+        echo ''
+    else
+        install_software haveged haveged
+        systemctl start haveged && systemctl enable haveged
+        judge "haveged 启动"
+    fi
 
     mkdir -p /usr/local/bin >/dev/null 2>&1
 }
