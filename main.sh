@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2023.08.08.01"
+onekey_script_version="2024.01.02.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -388,7 +388,7 @@ identify_the_operating_system_and_architecture() {
             PACKAGE_MANAGEMENT_REMOVE='dnf remove'
             package_provide_tput='ncurses'
         elif [[ "$(type -P yum)" ]]; then
-            PACKAGE_MANAGEMENT_UPDATE='yum -y update'
+            PACKAGE_MANAGEMENT_UPDATE='yum makecache --refresh'
             PACKAGE_MANAGEMENT_INSTALL='yum -y install'
             PACKAGE_MANAGEMENT_REMOVE='yum remove'
             package_provide_tput='ncurses'
@@ -427,13 +427,13 @@ install_init() {
 
     ${PACKAGE_MANAGEMENT_INSTALL} dbus
 
-    systemctl stop firewalld
-    systemctl disable firewalld
-    show_ok_message "firewalld 已关闭"
+    # systemctl stop firewalld
+    # systemctl disable firewalld
+    # show_ok_message "firewalld 已关闭"
 
-    systemctl stop ufw
-    systemctl disable ufw
-    show_ok_message "ufw 已关闭"
+    # systemctl stop ufw
+    # systemctl disable ufw
+    # show_ok_message "ufw 已关闭"
 }
 
 install_software() {
@@ -569,9 +569,9 @@ dependency_install() {
     #########################
     # haveged - 随机数生成器
     #########################
-    install_software haveged haveged
-    systemctl start haveged && systemctl enable haveged
-    judge "haveged 启动"
+    # install_software haveged haveged
+    # systemctl start haveged && systemctl enable haveged
+    # judge "haveged 启动"
 
     mkdir -p /usr/local/bin >/dev/null 2>&1
 }
@@ -741,10 +741,10 @@ basic_optimization() {
     echo '* hard nofile 65536' >>/etc/security/limits.conf
 
     # 关闭 Selinux
-    if [[ "${linux_distribution}" == "centos" ]]; then
-        sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
-        setenforce 0
-    fi
+    # if [[ "${linux_distribution}" == "centos" ]]; then
+        # sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+        # setenforce 0
+    # fi
 
 }
 
@@ -1517,15 +1517,8 @@ ask_enable_acme_sh() {
 
 # 安装 SSL 证书申请脚本
 acme_sh_install() {
-    if [[ ! "$(type -P socat)" ]]; then
-        ${PACKAGE_MANAGEMENT_INSTALL} socat
-        judge "安装 socat"
-    fi
-    
-    if [[ ! "$(type -P netcat)" ]]; then
-        ${PACKAGE_MANAGEMENT_INSTALL} netcat
-        judge "安装 netcat"
-    fi
+    install_software socat socat
+    install_software nmap netcat
 
     if [[ ! -f $acme_sh_file ]]; then
         wget -O - $get_acme_sh_url | sh
