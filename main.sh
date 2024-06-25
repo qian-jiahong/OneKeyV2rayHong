@@ -100,13 +100,14 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.01.02.01"
+onekey_script_version="2024.06.25.01"
 remote_version=""
 
 # 必须的脚本名称
 launcher_script="one_key_v2ray_hong.sh"
 main_script="main.sh"
 v2ray_script="fhs-install-v2ray.sh"
+install_certs_script="install_certs.sh"
 json_utils_script="json_utils.sh"
 
 # V2Ray core
@@ -141,6 +142,7 @@ ssl_cert_update_sh="/usr/bin/ssl_cert_update.sh"
 get_acme_sh_url=https://get.acme.sh
 ssl_cert_fullchain_path="${one_key_conf_dir}/ssl_fullchain_file"
 ssl_cert_key_path="${one_key_conf_dir}/ssl_key_file"
+install_certs_script_path="${one_key_conf_dir}/${install_certs_script}"
 
 openssl_version="1.1.1k"
 openssl_package_base=openssl-$openssl_version
@@ -178,6 +180,7 @@ declare -A SCRIPTS_URL_ARRAY=(
     ["$main_script"]="${onekey_base_url}/$main_script"
     ["$json_utils_script"]="${onekey_base_url}/$json_utils_script"
     ["$v2ray_script"]="${onekey_base_url}/$v2ray_script"
+    ["$install_certs_script"]="${onekey_base_url}/$install_certs_script"
 )
 
 backup_one_key_script_tar='backup_one_key_script.tar.gz'
@@ -1534,6 +1537,22 @@ acme_sh_install() {
 
     # 安装添加定期更新任务
     $acme_sh_file --install-cronjob
+    
+    # 添加定期复制证书任务
+    local CRONTAB_STDIN="crontab -"
+    local CRONTAB="crontab"
+
+    local time_str=$($CRONTAB -l | grep -E "^\s*.+/acme.sh --cron --home" | grep -Eo "^\s*[0-9]+\s+[0-9*]+\s+[0-9*]+\s+[0-9*]+\s+[0-9*]+\s+")
+    local minute=$(echo $time_str | awk '{print $1}')
+    ((minute++))
+    local new_time_str="$minute $(echo $time_str | awk '{print $2,$3,$4,$5}')" 
+
+    $CRONTAB -l | sed "/$install_certs_script/d" | $CRONTAB_STDIN
+    $CRONTAB -l | {
+        cat
+        # echo "$new_time_str $install_certs_script_path  > /dev/null
+        echo "$new_time_str $install_certs_script_path > /root/${install_certs_script}.log"
+    } | $CRONTAB_STDIN
 }
 
 # 卸载 SSL 证书管理脚本, 会自动删除 crontab 任务
@@ -1590,7 +1609,8 @@ acme_sh_install_cert() {
 
         # 本地已有证书, 则安装证书
         show_message "\n安装 SSL 证书 ..."
-        bash $acme_sh_file --install-cert -d "${main_domail}" --fullchain-file "$ssl_cert_fullchain_path" --key-file "$ssl_cert_key_path" --ecc --force
+        # bash $acme_sh_file --install-cert -d "${main_domail}" --fullchain-file "$ssl_cert_fullchain_path" --key-file "$ssl_cert_key_path" --ecc --force
+        bash $install_certs_script
         judge "安装 SSL 证书 ${main_domail}"
     else
         show_error_message "本地无 SSL 证书, 安装中断"
