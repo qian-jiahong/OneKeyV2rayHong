@@ -100,14 +100,13 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.06.25.01"
+onekey_script_version="2024.06.26.01"
 remote_version=""
 
 # 必须的脚本名称
 launcher_script="one_key_v2ray_hong.sh"
 main_script="main.sh"
 v2ray_script="fhs-install-v2ray.sh"
-install_certs_script="install_certs.sh"
 json_utils_script="json_utils.sh"
 
 # V2Ray core
@@ -140,9 +139,7 @@ acme_sh_dir="$HOME/.acme.sh"
 acme_sh_file="$acme_sh_dir/acme.sh"
 ssl_cert_update_sh="/usr/bin/ssl_cert_update.sh"
 get_acme_sh_url=https://get.acme.sh
-ssl_cert_fullchain_path="${one_key_conf_dir}/ssl_fullchain_file"
-ssl_cert_key_path="${one_key_conf_dir}/ssl_key_file"
-install_certs_script_path="${one_key_conf_dir}/${install_certs_script}"
+ssl_cert_base_dir="/etc/ssl/cert_list"
 
 openssl_version="1.1.1k"
 openssl_package_base=openssl-$openssl_version
@@ -180,7 +177,6 @@ declare -A SCRIPTS_URL_ARRAY=(
     ["$main_script"]="${onekey_base_url}/$main_script"
     ["$json_utils_script"]="${onekey_base_url}/$json_utils_script"
     ["$v2ray_script"]="${onekey_base_url}/$v2ray_script"
-    ["$install_certs_script"]="${onekey_base_url}/$install_certs_script"
 )
 
 backup_one_key_script_tar='backup_one_key_script.tar.gz'
@@ -211,6 +207,9 @@ port=443
 uuid=""
 alterID=0
 obfsPath=""
+sslKeyFile=""
+sslCertFile=""
+sslFullchainFile=""
 
 # V2Ray 端口，只用于新安装情境
 inbound_port=10000
@@ -242,6 +241,9 @@ init_default_value() {
     uuid="$(gen_uuid)"
     alterID=0
     obfsPath="/$(gen_obfs_path)/"
+    sslKeyFile=""
+    sslCertFile=""
+    sslFullchainFile=""
 
     # Nginx 配置变量(仅用于 ws 方式)
     tls_version=1
@@ -273,6 +275,9 @@ obfsPath="$obfsPath"
 obfsType="$obfsType"
 tls_version=$tls_version
 acme_sh_enabled=$acme_sh_enabled
+sslKeyFile=$sslKeyFile
+sslCertFile=$sslCertFile
+sslFullchainFile=$sslFullchainFile
 EOF
 }
 
@@ -919,8 +924,8 @@ modify_UUID() {
 }
 
 modify_ssl_cert_path() {
-    json_set_value $v2ray_conf 'certificateFile' $ssl_cert_fullchain_path
-    json_set_value $v2ray_conf 'keyFile' $ssl_cert_key_path
+    json_set_value $v2ray_conf 'certificateFile' $sslCertFile
+    json_set_value $v2ray_conf 'keyFile' $sslKeyFile
 }
 
 modify_obfs_path() {
@@ -1055,8 +1060,8 @@ server {
     ### ${_bash_var_do_not_modify} ${_bash_var_modify_id_port_2} ###
     listen [::]:${_bash_var_port} http2;
 
-    ssl_certificate       ${ssl_cert_fullchain_path};
-    ssl_certificate_key   ${ssl_cert_key_path};
+    ssl_certificate       ${sslCertFile};
+    ssl_certificate_key   ${sslKeyFile};
 
     ### ${_bash_var_do_not_modify} ${_bash_var_modify_id_tls_version} ###
     ssl_protocols         ${_bash_var_tls_version};
@@ -1481,10 +1486,10 @@ acme_sh_cert_exist() {
 
 show_enable_acme_sh_tips() {
     show_message "启用 acme 管理 SSL 证书, 可以自动申请免费证书, 并定期更新证书"
-    if [[ ! -f $ssl_cert_fullchain_path ]] || [[ ! -f $ssl_cert_key_path ]]; then
+    if [[ ! -f $sslCertFile ]] || [[ ! -f $sslKeyFile ]]; then
         show_message "如果不启用 acme, 你需要首先复制已有的证书到以下路径才能继续安装: "
-        show_message "  $ssl_cert_fullchain_path"
-        show_message "  $ssl_cert_key_path"
+        show_message "  $sslCertFile"
+        show_message "  $sslKeyFile"
     fi
 }
 
@@ -1493,7 +1498,7 @@ ask_enable_acme_sh() {
         show_enable_acme_sh_tips
     fi
 
-    read -rp "是否启用 acme? [Y/N](默认:Y, 不知道是什么, 就直接回车): " confirm_acme_sh_enabled
+    read -rp "是否启用 acme.sh 管理 SSL 证书? [Y/N](默认:Y, 不知道是什么, 就直接回车): " confirm_acme_sh_enabled
     [[ -z $confirm_acme_sh_enabled ]] && confirm_acme_sh_enabled="Y"
 
     case $confirm_acme_sh_enabled in
@@ -1503,12 +1508,12 @@ ask_enable_acme_sh() {
         ;;
     [[nN][oO] | [nN])
         acme_sh_enabled=0
-        show_striking_message "不启用 acme 管理 SSL 证书"
-        if [[ ! -f $ssl_cert_fullchain_path ]] || [[ ! -f $ssl_cert_key_path ]]; then
+        show_striking_message "不启用 acme.sh 管理 SSL 证书"
+        if [[ ! -f $sslCertFile ]] || [[ ! -f $sslKeyFile ]]; then
             show_error_message "未发现证书，安装中断"
             show_error_message "你需要首先复制已有的证书到以下路径才能继续安装:"
-            show_message "  $ssl_cert_fullchain_path"
-            show_message "  $ssl_cert_key_path"
+            show_message "  $sslCertFile"
+            show_message "  $sslKeyFile"
             exit 1
         fi
         ;;
@@ -1537,22 +1542,6 @@ acme_sh_install() {
 
     # 安装添加定期更新任务
     $acme_sh_file --install-cronjob
-    
-    # 添加定期复制证书任务
-    local CRONTAB_STDIN="crontab -"
-    local CRONTAB="crontab"
-
-    local time_str=$($CRONTAB -l | grep -E "^\s*.+/acme.sh --cron --home" | grep -Eo "^\s*[0-9]+\s+[0-9*]+\s+[0-9*]+\s+[0-9*]+\s+[0-9*]+\s+")
-    local minute=$(echo $time_str | awk '{print $1}')
-    ((minute++))
-    local new_time_str="$minute $(echo $time_str | awk '{print $2,$3,$4,$5}')" 
-
-    $CRONTAB -l | sed "/$install_certs_script/d" | $CRONTAB_STDIN
-    $CRONTAB -l | {
-        cat
-        # echo "$new_time_str $install_certs_script_path  > /dev/null
-        echo "$new_time_str $install_certs_script_path > /root/${install_certs_script}.log"
-    } | $CRONTAB_STDIN
 }
 
 # 卸载 SSL 证书管理脚本, 会自动删除 crontab 任务
@@ -1597,20 +1586,24 @@ acme_sh_issue_cert() {
 # 安装证书
 acme_sh_install_cert() {
     if acme_sh_cert_exist; then
-        local main_domail=$domain
-        if [[ $(bash $acme_sh_file --list | awk '{if($4=="LetsEncrypt.org") print $1}' | grep -c "^${domain}$") == 0 ]]; then
-            # 在 acme 列表中查找主域名
-            # 如果主域名列中找不到 $domain, 则在 SAN_Domains 列查找并返回主域名
-            local tmp_str=$(bash $acme_sh_file --list | awk '{if($4=="LetsEncrypt.org") print $0}' |
-                awk -v domail_tmp=$domain '{split($3,array,",")} {for(i in array){if(array[i]==domail_tmp) print $1}}' |
-                head -1)
-            [[ -n $tmp_str ]] && main_domail=$tmp_str
+        local sslDir="${ssl_cert_base_dir}/$domain"
+        sslKeyFile="${sslDir}/key.pem"
+        sslCertFile="${sslDir}/cert.pem"
+        sslFullchainFile="${sslDir}/fullchain.pem"
+
+        # 创建证书目录
+        if [[ ! -d "$sslDir" ]]; then
+            mkdir -p "$sslDir"
         fi
 
-        # 本地已有证书, 则安装证书
-        show_message "\n安装 SSL 证书 ..."
-        # bash $acme_sh_file --install-cert -d "${main_domail}" --fullchain-file "$ssl_cert_fullchain_path" --key-file "$ssl_cert_key_path" --ecc --force
-        bash $install_certs_script
+        # 安装证书
+        show_message "\n安装 SSL 证书到目录: $sslDir"
+        bash $acme_sh_file \
+            --install-cert -d $domain \
+            --cert-file       $sslCertFile  \
+            --key-file        $sslKeyFile  \
+            --fullchain-file  $sslFullchainFile 
+
         judge "安装 SSL 证书 ${main_domail}"
     else
         show_error_message "本地无 SSL 证书, 安装中断"
@@ -1618,14 +1611,23 @@ acme_sh_install_cert() {
     fi
 }
 
+# 设置安装 SSL 证书后的回调脚本
+acme_sh_install_cert_and_set_callback() {
+    bash $acme_sh_file \
+        --install-cert -d $domain \
+        --cert-file       $sslCertFile  \
+        --key-file        $sslKeyFile  \
+        --fullchain-file  $sslFullchainFile \
+        --reloadcmd       "service nginx restart" \
+        >/dev/null
+}
+
 # 手动更新证书. 有限制，7天内不超过 5 次
 ssl_cert_update_manuel() {
     if onekey_installed; then
-        nginx_and_v2ray_service_stop
         bash $acme_sh_file --cron
         bash $acme_sh_file --list
-        acme_sh_install_cert
-        nginx_and_v2ray_service_restart
+        acme_sh_install_cert_and_set_callback
     fi
 }
 
@@ -1642,7 +1644,7 @@ if [[ -f "$onekey_conf" ]]; then
         systemctl stop nginx &> /dev/null
         sleep 1
         bash $acme_sh_file --cron --home "$acme_sh_dir" &> /dev/null
-        bash $acme_sh_file --install-cert -d "\$domain" --fullchain-file "$ssl_cert_fullchain_path" --key-file "$ssl_cert_key_path" --ecc
+        bash $acme_sh_file --install-cert -d "\$domain" --fullchain-file "$sslFullchainFile" --key-file "$sslKeyFile" --ecc
         sleep 1
         systemctl start nginx &> /dev/null
     fi
@@ -1748,6 +1750,11 @@ install_v2ray_ws_tls() {
     save_onekey_config
     show_v2ray_config_desc
 
+    # 设置安装 SSL 证书后的回调脚本
+    if acme_sh_is_enabled; then
+        acme_sh_install_cert_and_set_callback
+    fi
+
     show_ok_message "安装成功"
 }
 
@@ -1790,6 +1797,11 @@ install_v2ray_h2() {
     # 显示客户端配置二维码或连接
     save_onekey_config
     show_v2ray_config_desc
+
+    # 设置安装 SSL 证书后的回调脚本
+    if acme_sh_is_enabled; then
+        acme_sh_install_cert_and_set_callback
+    fi
 
     show_ok_message "安装成功"
 }
