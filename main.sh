@@ -1047,9 +1047,7 @@ build_nginx_config_for_v2ray() {
 
     # 备份
     if [ -f $nginx_conf ]; then
-        local nginx_conf_backup="${nginx_conf}.bak"
-        rm -rf $nginx_conf_backup
-        cp $nginx_conf $nginx_conf_backup
+        cp $nginx_conf "${nginx_conf}.bak"
     fi
 
     cat >${nginx_conf} <<EOF
