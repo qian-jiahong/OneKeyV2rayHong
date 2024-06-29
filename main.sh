@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.06.26.01"
+onekey_script_version="2024.06.29.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -924,7 +924,7 @@ modify_UUID() {
 }
 
 modify_ssl_cert_path() {
-    json_set_value $v2ray_conf 'certificateFile' $sslCertFile
+    json_set_value $v2ray_conf 'certificateFile' $sslFullchainFile
     json_set_value $v2ray_conf 'keyFile' $sslKeyFile
 }
 
@@ -1060,7 +1060,7 @@ server {
     ### ${_bash_var_do_not_modify} ${_bash_var_modify_id_port_2} ###
     listen [::]:${_bash_var_port} http2;
 
-    ssl_certificate       ${sslCertFile};
+    ssl_certificate       ${sslFullchainFile};
     ssl_certificate_key   ${sslKeyFile};
 
     ### ${_bash_var_do_not_modify} ${_bash_var_modify_id_tls_version} ###
@@ -1486,9 +1486,9 @@ acme_sh_cert_exist() {
 
 show_enable_acme_sh_tips() {
     show_message "启用 acme 管理 SSL 证书, 可以自动申请免费证书, 并定期更新证书"
-    if [[ ! -f $sslCertFile ]] || [[ ! -f $sslKeyFile ]]; then
+    if [[ ! -f $sslFullchainFile ]] || [[ ! -f $sslKeyFile ]]; then
         show_message "如果不启用 acme, 你需要首先复制已有的证书到以下路径才能继续安装: "
-        show_message "  $sslCertFile"
+        show_message "  $sslFullchainFile"
         show_message "  $sslKeyFile"
     fi
 }
@@ -1509,10 +1509,10 @@ ask_enable_acme_sh() {
     [[nN][oO] | [nN])
         acme_sh_enabled=0
         show_striking_message "不启用 acme.sh 管理 SSL 证书"
-        if [[ ! -f $sslCertFile ]] || [[ ! -f $sslKeyFile ]]; then
+        if [[ ! -f $sslFullchainFile ]] || [[ ! -f $sslKeyFile ]]; then
             show_error_message "未发现证书，安装中断"
             show_error_message "你需要首先复制已有的证书到以下路径才能继续安装:"
-            show_message "  $sslCertFile"
+            show_message "  $sslFullchainFile"
             show_message "  $sslKeyFile"
             exit 1
         fi
