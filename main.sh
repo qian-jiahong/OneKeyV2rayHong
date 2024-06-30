@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.06.29.02"
+onekey_script_version="2024.06.30.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -1611,17 +1611,17 @@ acme_sh_install_cert() {
 
 # 设置安装 SSL 证书后的回调脚本
 acme_sh_install_cert_and_set_callback() {
-    local reload_cmd = "service v2ray restart"
+    local reload_cmd="service v2ray restart"
     if [[ $obfsType == "ws" ]]; then
-        reload_cmd = "service nginx restart"
+        reload_cmd="service nginx restart"
     fi
 
     bash $acme_sh_file \
-        --install-cert -d $domain \
-        --cert-file       $sslCertFile  \
-        --key-file        $sslKeyFile  \
-        --fullchain-file  $sslFullchainFile \
-        --reloadcmd       $reload_cmd \
+        --install-cert -d "$domain" \
+        --cert-file       "$sslCertFile"  \
+        --key-file        "$sslKeyFile"  \
+        --fullchain-file  "$sslFullchainFile" \
+        --reloadcmd       "$reload_cmd" \
         >/dev/null
 }
 
