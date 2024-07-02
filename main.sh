@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.06.30.01"
+onekey_script_version="2024.07.02.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -704,15 +704,16 @@ nginx_install() {
     cd ${old_dir}
 
     # 清理安装源文件
-    rm -rf ${nginx_package_base} ${nginx_package_name}
-    rm -rf ${openssl_package_base} ${openssl_package_name}
-    rm -rf ${jemalloc_package_base} ${jemalloc_package_name}
+    rm -rf "${source_dir_for_install}/${nginx_package_base}"    "${source_dir_for_install}/${nginx_package_name}"
+    rm -rf "${source_dir_for_install}/${openssl_package_base}"  "${source_dir_for_install}/${openssl_package_name}"
+    rm -rf "${source_dir_for_install}/${jemalloc_package_base}" "${source_dir_for_install}/${jemalloc_package_name}"
 
     # 修改基本配置
-    sed -i 's/#user  nobody;/user  root;/' ${nginx_dir}/conf/nginx.conf
-    sed -i 's/worker_processes  1;/worker_processes  3;/' ${nginx_dir}/conf/nginx.conf
-    sed -i 's/    worker_connections  1024;/    worker_connections  4096;/' ${nginx_dir}/conf/nginx.conf
-    sed -i '$i include conf.d/*.conf;' ${nginx_dir}/conf/nginx.conf
+    sed -i -e 's/#user\s\+nobody;/user  root;/' \
+           -e 's/worker_processes\s\+[0-9]\+;/worker_processes  3;/' \
+           -e 's/worker_connections\s\+[0-9]\+;/worker_connections  4096;/' \
+           -e '$i\    include conf.d/*.conf;' \
+           ${nginx_dir}/conf/nginx.conf
 
     # 添加配置文件夹，适配旧版脚本
     mkdir ${nginx_dir}/conf/conf.d
@@ -899,6 +900,17 @@ domain_check() {
             exit 2
             ;;
         esac
+    fi
+
+    # 生成证书路径
+    local sslDir="${ssl_cert_base_dir}/$domain"
+    sslKeyFile="${sslDir}/key.pem"
+    sslCertFile="${sslDir}/cert.pem"
+    sslFullchainFile="${sslDir}/fullchain.pem"
+
+    # 创建证书目录
+    if [[ ! -d "$sslDir" ]]; then
+        mkdir -p "$sslDir"
     fi
 }
 
@@ -1123,6 +1135,19 @@ nginx_and_v2ray_service_stop() {
     systemctl stop v2ray
 }
 
+nginx_service_restart() {
+    local service='nginx'
+
+    systemctl stop ${service}
+    systemctl start ${service}
+    if service_is_running "${service}"; then
+        show_ok_message "Nginx 启动成功"
+    else
+        show_error_message "Nginx 启动失败"
+        systemctl status ${service}
+    fi
+}
+
 # 重启 Nginx 和 v2ray 服务
 nginx_and_v2ray_service_restart() {
     nginx_and_v2ray_service_stop
@@ -1132,14 +1157,7 @@ nginx_and_v2ray_service_restart() {
     chown -R root.root $v2ray_log_dir
 
     if [[ $obfsType == "ws" ]]; then
-        local service='nginx'
-        systemctl start ${service}
-        if service_is_running "${service}"; then
-            show_ok_message "Nginx 启动成功"
-        else
-            show_error_message "Nginx 启动失败"
-            systemctl status ${service}
-        fi
+        nginx_service_restart
     fi
 
     local service='v2ray'
@@ -1458,6 +1476,18 @@ input_config() {
     fi
 }
 
+check_cert_exist() {
+    if ! acme_sh_is_enabled; then
+        if [ ! -f $sslFullchainFile ] || [ ! -f $sslKeyFile ]; then
+            show_error_message "未发现证书，安装中断"
+            show_error_message "请首先复制已有的证书到以下路径，才能继续安装:"
+            show_message "  Full chain file: $sslFullchainFile"
+            show_message "  Key file:        $sslKeyFile"
+            exit 1
+        fi
+    fi
+}
+
 #####################################################
 # 证书
 #####################################################
@@ -1507,13 +1537,6 @@ ask_enable_acme_sh() {
     [[nN][oO] | [nN])
         acme_sh_enabled=0
         show_striking_message "不启用 acme.sh 管理 SSL 证书"
-        if [[ ! -f $sslFullchainFile ]] || [[ ! -f $sslKeyFile ]]; then
-            show_error_message "未发现证书，安装中断"
-            show_error_message "你需要首先复制已有的证书到以下路径才能继续安装:"
-            show_message "  $sslFullchainFile"
-            show_message "  $sslKeyFile"
-            exit 1
-        fi
         ;;
     *)
         show_error_message "输入错误, 请重新输入"
@@ -1563,10 +1586,16 @@ acme_sh_uninstall() {
 acme_sh_issue_cert() {
     # 切换证书签发机构
     bash $acme_sh_file --set-default-ca --server letsencrypt
+
+    # 申请证书需要启动 nginx
+    nginx_service_restart
+
     if (! acme_sh_cert_exist); then
         # 请求签发证书
         show_message "\n请求签发 SSL 证书 ... \n"
-        bash $acme_sh_file --issue --insecure -d "${domain}" --standalone -k ec-256 --ecc --force >/dev/null 2>&1
+        bash $acme_sh_file --issue --insecure -d "${domain}" -w "${nginx_dir}/html" --standalone -k ec-256 --ecc --force >/dev/null 2>&1
+    else
+        bash $acme_sh_file --issue --insecure -d "${domain}" -w "${nginx_dir}/html" --standalone -k ec-256 --ecc >/dev/null 2>&1
     fi
 
     show_message "当前可用证书"
@@ -1585,14 +1614,6 @@ acme_sh_issue_cert() {
 acme_sh_install_cert() {
     if acme_sh_cert_exist; then
         local sslDir="${ssl_cert_base_dir}/$domain"
-        sslKeyFile="${sslDir}/key.pem"
-        sslCertFile="${sslDir}/cert.pem"
-        sslFullchainFile="${sslDir}/fullchain.pem"
-
-        # 创建证书目录
-        if [[ ! -d "$sslDir" ]]; then
-            mkdir -p "$sslDir"
-        fi
 
         # 安装证书
         show_message "\n安装 SSL 证书到目录: $sslDir"
@@ -1720,6 +1741,7 @@ install_v2ray_ws_tls() {
     # 获得参数
     input_config
     domain_check
+    check_cert_exist
 
     # 依赖的软件
     chrony_install
@@ -1728,6 +1750,9 @@ install_v2ray_ws_tls() {
     nginx_and_v2ray_service_stop
     kill_port_if_exist 80
     kill_port_if_exist ${port}
+
+    # 安装 nginx
+    nginx_install
 
     # 安装及设置 acme SSL 证书管理脚本
     if acme_sh_is_enabled; then
@@ -1740,8 +1765,7 @@ install_v2ray_ws_tls() {
     v2ray_install
     v2ray_conf_init_ws
 
-    # 安装及设置 nginx
-    nginx_install
+    # 设置 nginx
     build_nginx_config_for_v2ray
     download_web_camouflage
 
@@ -1773,6 +1797,7 @@ install_v2ray_h2() {
     # 获得参数
     input_config
     domain_check
+    check_cert_exist
 
     # 依赖的软件
     chrony_install
