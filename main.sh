@@ -374,6 +374,11 @@ identify_the_operating_system_and_architecture() {
 
         show_striking_message "当前系统为: ${linux_distribution_name}"
 
+        if is_current_almalinux_os; then  
+            wget --no-check-certificate "https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux" -O /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux >/dev/null 2>&1
+            rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux
+        fi
+
         # 请勿将此判断条件与以下判断条件组合使用。
         # 请注意 Gentoo 等 Linux 发行版，其内核支持在 Systemd 和 OpenRC 之间切换。
         # 参考: https://github.com/v2fly/fhs-install-v2ray/issues/84#issuecomment-688574989
@@ -421,18 +426,6 @@ identify_the_operating_system_and_architecture() {
 }
 
 install_init() {
-    if [[ "${linux_distribution}" == "centos" && ${linux_distribution_version} -ge 7 ]]; then
-        true
-    elif [[ "${linux_distribution}" == "debian" && ${linux_distribution_version} -ge 8 ]]; then
-        apt update
-    elif [[ "${linux_distribution}" == "ubuntu" && $(echo "${linux_distribution_version}" | cut -d '.' -f1) -ge 16 ]]; then
-        rm /var/lib/dpkg/lock
-        dpkg --configure -a
-        rm /var/lib/apt/lists/lock
-        rm /var/cache/apt/archives/lock
-        apt update
-    fi
-
     ${PACKAGE_MANAGEMENT_INSTALL} dbus
 
     # systemctl stop firewalld
@@ -454,6 +447,26 @@ install_software() {
         show_error_message "安装 $package_name 失败，请检查您的网络。"
         exit 1
     fi
+}
+
+is_current_almalinux_or_centos_os() {
+    local ret_value=${FALSE}
+
+    if [[ "${linux_distribution}" == "almalinux" || "${linux_distribution}" == "centos" ]]; then  
+        ret_value=${TRUE}
+    fi
+
+    return ${ret_value}
+}
+
+is_current_almalinux_os() {
+    local ret_value=${FALSE}
+
+    if [[ "${linux_distribution}" == "almalinux" ]]; then  
+        ret_value=${TRUE}
+    fi
+
+    return ${ret_value}
 }
 
 check_if_running_as_root() {
@@ -512,7 +525,7 @@ judge() {
 chrony_install() {
     app_name="chrony"
     service_name="chrony"
-    if [[ "${linux_distribution}" == "centos" ]]; then
+    if is_current_almalinux_or_centos_os; then
         service_name="chronyd"
     fi
 
@@ -558,7 +571,7 @@ dependency_install() {
     #########################
     app_name="cron"
     service_name="cron"
-    if [[ "${linux_distribution}" == "centos" ]]; then
+    if is_current_almalinux_or_centos_os; then
         app_name="crontabs"
         service_name="crond"
     fi
@@ -591,14 +604,14 @@ dependency_install() {
 # Development tools
 # 包含常用的开发包，包括gcc，g++等
 development_tools_install() {
-    if [[ "${linux_distribution}" == "centos" ]]; then
+    if is_current_almalinux_or_centos_os; then
         yum -y groupinstall "Development tools"
     else
         ${PACKAGE_MANAGEMENT_INSTALL} build-essential
     fi
     judge "编译工具包 安装"
 
-    if [[ "${linux_distribution}" == "centos" ]]; then
+    if is_current_almalinux_or_centos_os; then
         ${PACKAGE_MANAGEMENT_INSTALL} pcre pcre-devel zlib-devel epel-release
     else
         ${PACKAGE_MANAGEMENT_INSTALL} libpcre3 libpcre3-dev zlib1g-dev dbus
@@ -754,7 +767,7 @@ basic_optimization() {
     echo '* hard nofile 65536' >>/etc/security/limits.conf
 
     # 关闭 Selinux
-    # if [[ "${linux_distribution}" == "centos" ]]; then
+    # if is_current_almalinux_or_centos_os; then
         # sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
         # setenforce 0
     # fi
