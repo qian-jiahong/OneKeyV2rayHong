@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.08.14.01"
+onekey_script_version="2024.09.08.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -1606,9 +1606,9 @@ acme_sh_issue_cert() {
     if (! acme_sh_cert_exist); then
         # 请求签发证书
         show_message "\n请求签发 SSL 证书 ... \n"
-        bash $acme_sh_file --issue --insecure -d "${domain}" -w "${nginx_dir}/html" --standalone -k ec-256 --ecc --force >/dev/null 2>&1
+        bash $acme_sh_file --issue --insecure -d "${domain}" --standalone -k ec-256 --ecc --force >/dev/null 2>&1
     else
-        bash $acme_sh_file --issue --insecure -d "${domain}" -w "${nginx_dir}/html" --standalone -k ec-256 --ecc >/dev/null 2>&1
+        bash $acme_sh_file --issue --insecure -d "${domain}" --standalone -k ec-256 --ecc >/dev/null 2>&1
     fi
 
     show_message "当前可用证书"
