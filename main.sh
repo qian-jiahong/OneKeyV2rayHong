@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.09.08.01"
+onekey_script_version="2024.11.20.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -1769,6 +1769,7 @@ install_v2ray_ws_tls() {
 
     # 安装及设置 acme SSL 证书管理脚本
     if acme_sh_is_enabled; then
+        nginx_and_v2ray_service_stop
         acme_sh_install
         acme_sh_issue_cert
         acme_sh_install_cert
@@ -1822,6 +1823,7 @@ install_v2ray_h2() {
 
     # 安装及设置 acme SSL 证书管理脚本
     if acme_sh_is_enabled; then
+        nginx_and_v2ray_service_stop
         acme_sh_install
         acme_sh_issue_cert
         acme_sh_install_cert
