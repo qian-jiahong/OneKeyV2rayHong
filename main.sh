@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.11.20.01"
+onekey_script_version="2024.11.21.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -1515,9 +1515,8 @@ acme_sh_is_enabled() {
 
 acme_sh_cert_exist() {
     # 从列表中搜索域名, 包括备用域名, 不包括测试的证书
-    if [[ $(bash $acme_sh_file --list | grep "${domain}" | awk '{if($4=="LetsEncrypt.org") print $0}' |
-        awk '{print $1,$3}' | tr ',\n' ' ' | xargs | awk '{split($0,array," ")} {for(i in array) print array[i]}' |
-        grep -c "^${domain}$") -gt 0 ]]; then
+    local is_found=$(bash $acme_sh_file --list  | awk -v domain=$domain 'BEGIN{found=0} {if($1==domain && $4=="LetsEncrypt.org" && $5!="") {found++}} END{if(found>0) {print 1} else {print 0}}')
+    if (( is_found == 1 )); then
         # .acme.sh 目录下已有证书
         return ${TRUE}
     else
@@ -1571,6 +1570,8 @@ acme_sh_install() {
         judge "安装 SSL 证书管理脚本 acme"
     fi
 
+    alias acme.sh=$acme_sh_file
+
     # acme.sh 自动更新
     $acme_sh_file --upgrade --auto-upgrade
 
@@ -1600,8 +1601,8 @@ acme_sh_issue_cert() {
     # 切换证书签发机构
     bash $acme_sh_file --set-default-ca --server letsencrypt
 
-    # 申请证书需要启动 nginx
-    nginx_service_restart
+    # 申请证书需要 80 端口
+    kill_port_if_exist 80
 
     if (! acme_sh_cert_exist); then
         # 请求签发证书
@@ -1634,7 +1635,8 @@ acme_sh_install_cert() {
             --install-cert -d $domain \
             --cert-file       $sslCertFile  \
             --key-file        $sslKeyFile  \
-            --fullchain-file  $sslFullchainFile 
+            --fullchain-file  $sslFullchainFile \
+            --ecc
 
         judge "安装 SSL 证书 ${main_domail}"
     else
@@ -1656,6 +1658,7 @@ acme_sh_install_cert_and_set_callback() {
         --key-file        "$sslKeyFile"  \
         --fullchain-file  "$sslFullchainFile" \
         --reloadcmd       "$reload_cmd" \
+        --ecc \
         >/dev/null
 }
 
