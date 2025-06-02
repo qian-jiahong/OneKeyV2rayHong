@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2025.06.03.01"
+onekey_script_version="2025.06.03.02"
 remote_version=""
 
 # 必须的脚本名称
@@ -174,7 +174,7 @@ linux_distribution_name=""
 linux_distribution_version=""
 
 # 必须的脚本下载地址, 改为文件下载
-declare -A SCRIPTS_URL_ARRAY=(
+SCRIPTS_URL_ARRAY=(
     # acme_sh_renew.sh
     # fhs-install-v2ray.sh
     # install_certs.sh
