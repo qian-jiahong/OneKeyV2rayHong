@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2025.06.02.01"
+onekey_script_version="2025.06.03.01"
 remote_version=""
 
 # 必须的脚本名称
@@ -173,14 +173,14 @@ linux_distribution=""
 linux_distribution_name=""
 linux_distribution_version=""
 
-# 必须的脚本下载地址
+# 必须的脚本下载地址, 改为文件下载
 declare -A SCRIPTS_URL_ARRAY=(
-    ["$launcher_script"]="${onekey_base_url}/$launcher_script"
-    ["$main_script"]="${onekey_base_url}/$main_script"
-    ["$renew_script"]="${onekey_base_url}/$renew_script"
-    ["$after_renew_script"]="${onekey_base_url}/$after_renew_script"
-    ["$json_utils_script"]="${onekey_base_url}/$json_utils_script"
-    ["$v2ray_script"]="${onekey_base_url}/$v2ray_script"
+    # acme_sh_renew.sh
+    # fhs-install-v2ray.sh
+    # install_certs.sh
+    # json_utils.sh
+    # main.sh
+    # one_key_v2ray_hong.sh
 )
 
 backup_one_key_script_tar='backup_one_key_script.tar.gz'
@@ -2267,12 +2267,16 @@ menu_action() {
 
 # 下载必需的脚本, 不覆盖已有文件
 download_required_scripts() {
-    for key in ${!SCRIPTS_URL_ARRAY[*]}; do
-        local url="${SCRIPTS_URL_ARRAY[$key]}"
-        if [ ! -f $key ]; then
-            download "${url}"
-            judge "下载脚本 ${key}"
-        fi
+    local file_list_url="${onekey_base_url}/script_files.conf"
+    download "${file_list_url}"
+    judge "下载脚本清单"
+
+    source script_files.conf
+
+    for file_name in "${SCRIPTS_URL_ARRAY[@]}"; do
+        local url="${onekey_base_url}/${file_name}"
+        download "${url}"
+        judge "下载脚本 ${file_name}"
     done
 }
 
@@ -2282,9 +2286,9 @@ backup_required_scripts() {
 
     local files=""
     local count=0
-    for key in ${!SCRIPTS_URL_ARRAY[*]}; do
-        if [ -f $key ]; then
-            files="${files} ${key}"
+    for file_name in "${SCRIPTS_URL_ARRAY[@]}"; do
+        if [ -f $file_name ]; then
+            files="${files} ${file_name}"
             ((count++))
         fi
     done
