@@ -9,6 +9,19 @@ export PATH
 
 export one_key_conf_dir="$HOME/.one_key_v2ray_hong"
 onekey_conf="${one_key_conf_dir}/onekey.conf"
+ssl_cert_base_dir="/etc/ssl/cert_list"
+
+acme_sh_dir="$HOME/.acme.sh"
+acme_sh_file="$acme_sh_dir/acme.sh"
+
+show_message() {
+    echo -e "$1"
+}
+
+log() {
+    local message="$1"
+    echo $(date +"%Y-%m-%d_%H%M%S") $message >> "$one_key_conf_dir/install_certs.log"
+}
 
 read_config() {
     # $1 文件
@@ -37,30 +50,40 @@ install_certs() {
         exit 0
     fi
 
-    local to_path=/etc/ssl/cert_list/$domain
-    if [[ ! -d "$to_path" ]]; then
-        mkdir -p "$to_path"
+    local sslDir="${ssl_cert_base_dir}/$domain"
+    local sslKeyFile="${sslDir}/key.pem"
+    local sslCertFile="${sslDir}/cert.pem"
+    local sslFullchainFile="${sslDir}/fullchain.pem"
+    local reload_cmd="service nginx restart; service v2ray restart; nps restart; x-ui restart"
+
+    # 创建证书目录
+    if [[ ! -d "$sslDir" ]]; then
+        sudo mkdir -p "$sslDir"
     fi
 
-    acme.sh --install-cert -d $domain \
-        --cert-file      $to_path/cert.pem  \
-        --key-file       $to_path/key.pem  \
-        --fullchain-file $to_path/fullchain.pem \
-        --reloadcmd      "service nginx restart"
+    sudo service nginx stop
+
+    # 安装证书
+    show_message "\n安装 SSL 证书到目录: $sslDir"
+    bash $acme_sh_file \
+        --install-cert -d $domain \
+        --cert-file       $sslCertFile  \
+        --key-file        $sslKeyFile  \
+        --fullchain-file  $sslFullchainFile \
+        --ecc
+
+    if [[ 0 -eq $? ]]; then
+        log "install cert success! Domain: $domain"
+
+        service nginx restart
+        service v2ray restart
+        nps restart
+        x-ui restart
+    else
+        log "install cert failed! Domain: $domain"
+        exit 1
+    fi  
 }
-
+ 
 read_config
-# install_certs
-
-random_minute=1
-random_hour=6
-_CRONTAB_STDIN="crontab -"
-_CRONTAB="crontab"
-install_certs_script="install_certs.sh"
-$_CRONTAB -l | sed "/$install_certs_script/d" | $_CRONTAB_STDIN
-$_CRONTAB -l | {
-    cat
-    echo "$random_minute $random_hour * * *  $install_certs_script > /root/${install_certs_script}.log"
-} | $_CRONTAB_STDIN
-
-$_CRONTAB -l
+install_certs

@@ -100,12 +100,14 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2024.11.21.01"
+onekey_script_version="2025.06.02.01"
 remote_version=""
 
 # 必须的脚本名称
 launcher_script="one_key_v2ray_hong.sh"
 main_script="main.sh"
+renew_script="acme_sh_renew.sh"
+after_renew_script="install_certs.sh"
 v2ray_script="fhs-install-v2ray.sh"
 json_utils_script="json_utils.sh"
 
@@ -175,6 +177,8 @@ linux_distribution_version=""
 declare -A SCRIPTS_URL_ARRAY=(
     ["$launcher_script"]="${onekey_base_url}/$launcher_script"
     ["$main_script"]="${onekey_base_url}/$main_script"
+    ["$renew_script"]="${onekey_base_url}/$renew_script"
+    ["$after_renew_script"]="${onekey_base_url}/$after_renew_script"
     ["$json_utils_script"]="${onekey_base_url}/$json_utils_script"
     ["$v2ray_script"]="${onekey_base_url}/$v2ray_script"
 )
@@ -1560,6 +1564,26 @@ ask_enable_acme_sh() {
     is_show_enable_acme_sh_tips=1
 }
 
+acme_sh_install_cron_job() {
+    local new_job="$1"
+    local new_cmd=$(echo "$new_job" | awk '{for(i=6;i<=NF;++i) printf $i" "; print ""}' | sed 's/\s*$//')
+
+    # 当前 crontab 去掉与新命令相同的旧行
+    local updated_cron=$(crontab -l 2>/dev/null | awk -v cmd="$new_cmd" '
+    BEGIN { OFS=FS }
+    {
+        job_cmd = ""; for(i=6;i<=NF;++i) job_cmd = job_cmd $i " ";        # 格式化命令行。即只允许单个空格为分隔符。
+        sub(/\s+$/, "", job_cmd);     # 移除行尾空格和 tab 和换行符
+        if (job_cmd != cmd) print $0;   # 如果与 new_cmd 不同，则保留原行
+    }')
+
+    # 添加新任务
+    local updated_cron="$updated_cron"$'\n'"$new_job"
+
+    # 去重 & 安装
+    echo "$updated_cron" | crontab -
+}
+
 # 安装 SSL 证书申请脚本
 acme_sh_install() {
     install_software socat socat
@@ -1576,7 +1600,13 @@ acme_sh_install() {
     $acme_sh_file --upgrade --auto-upgrade
 
     # 安装添加定期更新任务
-    $acme_sh_file --install-cronjob
+    # $acme_sh_file --install-cronjob
+    local min=$(shuf -i 0-59 -n 1)
+    local hour=$(shuf -i 0-23 -n 1)
+    local day=$(shuf -i 1-28 -n 1)  # 为了避免2月问题，取1-28
+    local cron_job="$min $hour $day * * \"${one_key_conf_dir}/${renew_script}\" -cron >> ${one_key_conf_dir}/${renew_script}.log 2>&1"
+    acme_sh_install_cron_job "$cron_job"
+    judge "安装 SSL 证书定期更新任务"
 }
 
 # 卸载 SSL 证书管理脚本, 会自动删除 crontab 任务
@@ -1604,13 +1634,21 @@ acme_sh_issue_cert() {
     # 申请证书需要 80 端口
     kill_port_if_exist 80
 
-    if (! acme_sh_cert_exist); then
-        # 请求签发证书
-        show_message "\n请求签发 SSL 证书 ... \n"
-        bash $acme_sh_file --issue --insecure -d "${domain}" --standalone -k ec-256 --ecc --force >/dev/null 2>&1
-    else
-        bash $acme_sh_file --issue --insecure -d "${domain}" --standalone -k ec-256 --ecc >/dev/null 2>&1
+    local reload_cmd="${one_key_conf_dir}/$after_renew_script"
+    local cmd="$acme_sh_file --issue --insecure -d ${domain} --standalone -k ec-256 --ecc --reloadcmd $reload_cmd"
+
+    # 请求签发证书
+    show_message "\n请求签发 SSL 证书 ... \n"
+    if ! acme_sh_cert_exist || [ $debug_mode -eq 1 ]; then
+        cmd="$cmd --force"
     fi
+
+    if [ $debug_mode -eq 1 ]; then
+        cmd="$cmd --test"
+    fi
+
+    show_message "请求签发证书: $cmd"
+    bash $cmd >/dev/null 2>&1
 
     show_message "当前可用证书"
     bash $acme_sh_file --list | head -1
