@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2025.06.03.02"
+onekey_script_version="2025.06.03.03"
 remote_version=""
 
 # 必须的脚本名称
@@ -1474,6 +1474,9 @@ ask_use_old_config() {
             local bak_obfsType=${obfsType}
             read_config $onekey_conf_bak
             obfsType=${bak_obfsType}
+            if [[ $obfsType == 'ws' ]]; then
+                acme_sh_enabled=1
+            fi            
             show_ok_message "已读取旧配置文件, 接着将执行静默安装..."
             sleep 2
             ;;
