@@ -100,7 +100,7 @@ onekey_script_name="OneKeyV2rayHong"
 onekey_script_title="一键 V2ray 安装管理脚本"
 
 # 版本号, 升级时需要检查
-onekey_script_version="2025.06.03.04"
+onekey_script_version="2025.06.03.05"
 remote_version=""
 
 # 必须的脚本名称
@@ -1934,6 +1934,7 @@ onekey_script_update() {
                 ret_error=${TRUE}
             fi
 
+            chmod u+x "*.sh"
             rm -rf "${temp_dir}"
             if [ $ret_error != ${TRUE} ]; then
                 local launcher_script_path="${one_key_conf_dir}/${launcher_script}"
@@ -2282,7 +2283,6 @@ download_required_scripts() {
         judge "下载脚本 ${file_name}"
     done
 
-    chmod a+x *.sh
 }
 
 backup_required_scripts() {
