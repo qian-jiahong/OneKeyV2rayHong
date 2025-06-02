@@ -2323,7 +2323,7 @@ main() {
 
     check_if_running_as_root
     identify_the_operating_system_and_architecture
-    download_required_scripts
+
     local launcher_script_path="${one_key_conf_dir}/${launcher_script}"
     [ -f "${launcher_script_path}" ] && chmod a+x "${launcher_script_path}"
 
